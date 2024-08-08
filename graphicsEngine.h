@@ -43,6 +43,10 @@ class Renderer
         int windowWidth;
         int windowHeight;
 
+        vertex cameraPos;
+        float nearPlane;
+        float farPlane;
+
         float FOV;
         float rotation;
         float time;
