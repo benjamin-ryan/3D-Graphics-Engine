@@ -65,5 +65,9 @@ int main()
         frameRenderer.renderFrame();
     }
 
+    SDL_DestroyWindow(window);
+    SDL_DestroyRenderer(renderer);
+    SDL_Quit();
+
     return 0;
 }

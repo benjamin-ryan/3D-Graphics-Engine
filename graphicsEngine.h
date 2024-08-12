@@ -15,6 +15,7 @@ struct vertex
 struct triangle
 {
     vertex v[3];
+    float lightIntensity;
 };
 
 struct mesh
@@ -53,7 +54,7 @@ class Renderer
 
         mesh model;
 
-        void fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3);
+        void fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3, SDL_Color color);
 };
 
 #endif

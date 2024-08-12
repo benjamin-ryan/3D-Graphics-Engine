@@ -61,13 +61,12 @@ void Renderer::renderFrame()
         vertex rotatedVertex2 = rotateX(rotateY(tri.v[1]));
         vertex rotatedVertex3 = rotateX(rotateY(tri.v[2]));
 
-        //coord edge1 = projection(tri.v[0]);
-        //coord edge2 = projection(tri.v[1]);
-        //coord edge3 = projection(tri.v[2]);
-
         vertex e1 = subtractV(rotatedVertex2, rotatedVertex1);
         vertex e2 = subtractV(rotatedVertex3, rotatedVertex1);
         vertex normal = crossProduct(e1, e2);
+
+        float l = sqrtf(normal.x*normal.x + normal.y*normal.y + normal.z*normal.z);
+		normal.x /= l; normal.y /= l; normal.z /= l;
 
         vertex centroid = {
             (rotatedVertex1.x + rotatedVertex2.x + rotatedVertex3.x) / 3,
@@ -75,8 +74,11 @@ void Renderer::renderFrame()
             (rotatedVertex1.z + rotatedVertex2.z + rotatedVertex3.z) / 3
         };
         vertex cameraRay = normalize(subtractV(centroid, cameraPos));
+        float visibility = dotProduct(normal, cameraRay);
 
-        if (dotProduct(normal, cameraRay) > 0)
+        if (normal.x * (rotatedVertex1.x - cameraPos.x) +
+            normal.y * (rotatedVertex1.y - cameraPos.y) +
+            normal.z * (rotatedVertex1.z - cameraPos.z) > 0)
         {
             coord edge1 = projection(rotatedVertex1);
             coord edge2 = projection(rotatedVertex2);
@@ -87,13 +89,9 @@ void Renderer::renderFrame()
                 edge2.x, edge2.y, rotatedVertex2.z * (farPlane / (farPlane - nearPlane)) - ((farPlane * nearPlane) / (farPlane - nearPlane)),
                 edge3.x, edge3.y, rotatedVertex3.z * (farPlane / (farPlane - nearPlane)) - ((farPlane * nearPlane) / (farPlane - nearPlane))
             };
+            projectedTriangle.lightIntensity = visibility;
 
             visibleTriangles.push_back(projectedTriangle);
-
-            //fillTriangle(render, edge1, edge2, edge3);
-            //SDL_RenderDrawLine(render, edge1.x, edge1.y, edge2.x, edge2.y);
-            //SDL_RenderDrawLine(render, edge2.x, edge2.y, edge3.x, edge3.y);
-            //SDL_RenderDrawLine(render, edge3.x, edge3.y, edge1.x, edge1.y);
         }
     }
 
@@ -106,7 +104,12 @@ void Renderer::renderFrame()
 
     for (auto &tri : visibleTriangles)
     {
-        fillTriangle(render, {tri.v[0].x, tri.v[0].y}, {tri.v[1].x, tri.v[1].y}, {tri.v[2].x, tri.v[2].y});
+        SDL_Color brightness = {
+            static_cast<Uint8>(255 * tri.lightIntensity),
+            static_cast<Uint8>(255 * tri.lightIntensity),
+            static_cast<Uint8>(255 * tri.lightIntensity),
+            0xFF};
+        fillTriangle(render, {tri.v[0].x, tri.v[0].y}, {tri.v[1].x, tri.v[1].y}, {tri.v[2].x, tri.v[2].y}, brightness);
         SDL_RenderDrawLine(render, tri.v[0].x, tri.v[0].y, tri.v[1].x, tri.v[1].y);
         SDL_RenderDrawLine(render, tri.v[1].x, tri.v[1].y, tri.v[2].x, tri.v[2].y);
         SDL_RenderDrawLine(render, tri.v[2].x, tri.v[2].y, tri.v[0].x, tri.v[0].y);
@@ -159,7 +162,7 @@ bool Renderer::loadObjFile(const std::string &filename)
 
     model = obj;
     return true;
-};
+}
 
 coord Renderer::projection(vertex v)
 {
@@ -169,7 +172,7 @@ coord Renderer::projection(vertex v)
         v.z = farPlane;
     return coord{(windowWidth / 2) + ((FOV * v.x) / (FOV + v.z)) * 100,
                  (windowHeight / 2) + ((FOV * v.y) / (FOV + v.z)) * 100};
-};
+}
 
 vertex Renderer::rotateX(vertex v)
 {
@@ -189,26 +192,26 @@ vertex Renderer::rotateY(vertex v)
     return rotatedVertex;
 }
 
-void Renderer::fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3)
+void Renderer::fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3, SDL_Color color)
 {
-    SDL_Color tri_color={0,0,0,255};
+    SDL_Color tri_color={155,155,155,255};
     SDL_Vertex vertices[3] = {
         {
             { v1.x,v1.y },
-            { 255, 0, 0, 0xFF }, // 255, 0, 0, 0xFF
+            color, // 255, 0, 0, 0xFF
             { 0.f, 0.f }
         },
         {
             { v2.x, v2.y },
-            { 0, 255, 0, 0xFF }, // 0, 255, 0, 0xFF
-            { 0.f, 0.f }
+            color, // 0, 255, 0, 0xFF
+            { 1.0f, 0.f }
         },
         {
             { v3.x, v3.y },
-            { 0, 0, 255, 0xFF }, // 0, 0, 255, 0xFF 
-            { 0.f, 0.f }
+            color, // 0, 0, 255, 0xFF 
+            { 0.5f, 1.0f }
         }
     };
   
-    SDL_RenderGeometry(renderer,NULL,vertices,3,NULL,0);
+    SDL_RenderGeometry(renderer, NULL, vertices, 3, NULL, 0);
 }
