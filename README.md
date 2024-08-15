@@ -7,7 +7,7 @@ The only library I am using is SDL (Simple DirectMedia Layer).
 
 ## My goal with this
 My passion in computer science has always been graphics and ui but since beginning my journey I havent done much of it. This summer in my free time I worked on this engine.
-My initial goal was to be able to render Mario from Super Mario 64. In the process I learned so much about 3D graphics and what else goes into it that it transformed into
+My initial goal (as strange as it sounds) was to be able to render Mario from Super Mario 64. In the process I learned so much about 3D graphics and what else goes into it that it transformed into
 just experimenting and implenting as many 3D graphics features that I could figure out how to do.
 Some of these features include: Backface culling, the Painter's Algorithm, Normals,Lighting, and more!
 
