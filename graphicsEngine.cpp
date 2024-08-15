@@ -46,6 +46,8 @@ Renderer::Renderer(SDL_Window *_window, SDL_Renderer *_render, mesh &_mesh)
 
 void Renderer::renderFrame()
 {
+    userInput();
+
     auto startTime = std::chrono::high_resolution_clock::now();
     rotation += time;
 
@@ -60,6 +62,10 @@ void Renderer::renderFrame()
         vertex rotatedVertex1 = rotateX(rotateY(tri.v[0]));
         vertex rotatedVertex2 = rotateX(rotateY(tri.v[1]));
         vertex rotatedVertex3 = rotateX(rotateY(tri.v[2]));
+
+        rotatedVertex1 = subtractV(rotatedVertex1, cameraPos);
+        rotatedVertex2 = subtractV(rotatedVertex2, cameraPos);
+        rotatedVertex3 = subtractV(rotatedVertex3, cameraPos);
 
         vertex e1 = subtractV(rotatedVertex2, rotatedVertex1);
         vertex e2 = subtractV(rotatedVertex3, rotatedVertex1);
@@ -171,7 +177,7 @@ coord Renderer::projection(vertex v)
     if (v.z > farPlane)
         v.z = farPlane;
     return coord{(windowWidth / 2) + ((FOV * v.x) / (FOV + v.z)) * 100,
-                 (windowHeight / 2) + ((FOV * v.y) / (FOV + v.z)) * 100};
+                 (windowHeight / 2) + ((FOV * v.y) / (FOV + v.z)) * -100};
 }
 
 vertex Renderer::rotateX(vertex v)
@@ -214,4 +220,24 @@ void Renderer::fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3
     };
   
     SDL_RenderGeometry(renderer, NULL, vertices, 3, NULL, 0);
+}
+
+void Renderer::userInput()
+{
+    const Uint8 *state = SDL_GetKeyboardState(NULL);
+
+    float cameraSpeed = 0.01f;
+
+    if (state[SDL_SCANCODE_W])
+        cameraPos.z -= cameraSpeed * 10;
+    if (state[SDL_SCANCODE_S])
+        cameraPos.z += cameraSpeed * 10;
+    if (state[SDL_SCANCODE_A])
+        cameraPos.x -= cameraSpeed;
+    if (state[SDL_SCANCODE_D])
+        cameraPos.x += cameraSpeed;
+    if (state[SDL_SCANCODE_Q])
+        cameraPos.y -= cameraSpeed;
+    if (state[SDL_SCANCODE_E])
+        cameraPos.y += cameraSpeed;
 }

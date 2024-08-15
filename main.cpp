@@ -2,6 +2,8 @@
 #include "graphicsEngine.h"
 #include <iostream>
 
+// g++ -o main main.cpp graphicsEngine.cpp -std=c++17 `sdl2-config --cflags --libs`
+
 int main()
 {
     mesh cube;

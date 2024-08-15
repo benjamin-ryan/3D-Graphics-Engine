@@ -40,6 +40,8 @@ class Renderer
         vertex rotateX(vertex);
         vertex rotateY(vertex);
 
+        void userInput();
+
         SDL_Renderer* render;
         int windowWidth;
         int windowHeight;
