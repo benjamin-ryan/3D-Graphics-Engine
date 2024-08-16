@@ -32,6 +32,8 @@ Renderer::Renderer(SDL_Window *_window, SDL_Renderer *_render, mesh &_mesh)
 {
     SDL_GetWindowSize(_window, &windowWidth, &windowHeight);
 
+    texture = NULL;
+
     render = _render;
     model = _mesh;
 
@@ -91,11 +93,15 @@ void Renderer::renderFrame()
             coord edge3 = projection(rotatedVertex3);
 
             triangle projectedTriangle = {
-                edge1.x, edge1.y, rotatedVertex1.z * (farPlane / (farPlane - nearPlane)) - ((farPlane * nearPlane) / (farPlane - nearPlane)),
-                edge2.x, edge2.y, rotatedVertex2.z * (farPlane / (farPlane - nearPlane)) - ((farPlane * nearPlane) / (farPlane - nearPlane)),
-                edge3.x, edge3.y, rotatedVertex3.z * (farPlane / (farPlane - nearPlane)) - ((farPlane * nearPlane) / (farPlane - nearPlane))
+                edge1.u, edge1.v, rotatedVertex1.z * (farPlane / (farPlane - nearPlane)) - ((farPlane * nearPlane) / (farPlane - nearPlane)),
+                edge2.u, edge2.v, rotatedVertex2.z * (farPlane / (farPlane - nearPlane)) - ((farPlane * nearPlane) / (farPlane - nearPlane)),
+                edge3.u, edge3.v, rotatedVertex3.z * (farPlane / (farPlane - nearPlane)) - ((farPlane * nearPlane) / (farPlane - nearPlane))
             };
             projectedTriangle.lightIntensity = visibility;
+
+            projectedTriangle.t[0] = tri.t[0];
+            projectedTriangle.t[1] = tri.t[1];
+            projectedTriangle.t[2] = tri.t[2];
 
             visibleTriangles.push_back(projectedTriangle);
         }
@@ -115,10 +121,10 @@ void Renderer::renderFrame()
             static_cast<Uint8>(255 * tri.lightIntensity),
             static_cast<Uint8>(255 * tri.lightIntensity),
             0xFF};
-        fillTriangle(render, {tri.v[0].x, tri.v[0].y}, {tri.v[1].x, tri.v[1].y}, {tri.v[2].x, tri.v[2].y}, brightness);
-        SDL_RenderDrawLine(render, tri.v[0].x, tri.v[0].y, tri.v[1].x, tri.v[1].y);
-        SDL_RenderDrawLine(render, tri.v[1].x, tri.v[1].y, tri.v[2].x, tri.v[2].y);
-        SDL_RenderDrawLine(render, tri.v[2].x, tri.v[2].y, tri.v[0].x, tri.v[0].y);
+        fillTriangle(render, {tri.v[0].x, tri.v[0].y}, {tri.v[1].x, tri.v[1].y}, {tri.v[2].x, tri.v[2].y}, tri.t[0], tri.t[1], tri.t[2], brightness);
+        //SDL_RenderDrawLine(render, tri.v[0].x, tri.v[0].y, tri.v[1].x, tri.v[1].y);
+        //SDL_RenderDrawLine(render, tri.v[1].x, tri.v[1].y, tri.v[2].x, tri.v[2].y);
+        //SDL_RenderDrawLine(render, tri.v[2].x, tri.v[2].y, tri.v[0].x, tri.v[0].y);
     }
 
     SDL_RenderPresent(render);
@@ -128,7 +134,7 @@ void Renderer::renderFrame()
     time = duration.count();
 }
 
-bool Renderer::loadObjFile(const std::string &filename)
+bool Renderer::loadObjFile(const std::string& filename)
 {
     std::ifstream file(filename);
     if (!file.is_open())
@@ -170,14 +176,66 @@ bool Renderer::loadObjFile(const std::string &filename)
     return true;
 }
 
+bool Renderer::loadObjTextureFile(const std::string &filename, const std::string &texturename)
+{
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cout << "Failed to open file: " << filename << std::endl;
+        return false;
+    }
+
+    SDL_Surface* surface = SDL_LoadBMP(texturename.c_str());
+    if (!surface) {
+        std::cout << "Failed to open texture: " << texturename << std::endl;
+        return false;
+    }
+    texture = SDL_CreateTextureFromSurface(render, surface);
+    SDL_FreeSurface(surface);
+
+    std::vector<vertex> vertices;
+    std::vector<coord> tex;
+    mesh m;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream ss(line);
+        std::string prefix;
+        ss >> prefix;
+
+        if (prefix == "v") {
+            vertex v;
+            ss >> v.x >> v.y >> v.z;
+            vertices.push_back(v);
+        } else if (prefix == "vt") {
+            coord t;
+            ss >> t.u >> t.v;
+            tex.push_back(t);
+        } else if (prefix == "f") {
+            triangle tri;
+            for (int i = 0; i < 3; ++i) {
+                std::string vertexData;
+                ss >> vertexData;
+
+                size_t firstSlash = vertexData.find('/');
+                size_t secondSlash = vertexData.find('/', firstSlash + 1);
+
+                int vIndex = std::stoi(vertexData.substr(0, firstSlash)) - 1;
+                int tIndex = std::stoi(vertexData.substr(firstSlash + 1, secondSlash - firstSlash - 1)) - 1;
+
+                tri.v[i] = vertices[vIndex];
+                tri.t[i] = tex[tIndex];
+            }
+            m.triangles.push_back(tri);
+        }
+    }
+    model = m;
+    return true;
+}
+
 coord Renderer::projection(vertex v)
 {
-    if (v.z < nearPlane)
-        v.z = nearPlane;
-    if (v.z > farPlane)
-        v.z = farPlane;
-    return coord{(windowWidth / 2) + ((FOV * v.x) / (FOV + v.z)) * 100,
-                 (windowHeight / 2) + ((FOV * v.y) / (FOV + v.z)) * -100};
+    return coord{(windowWidth / 2) + ((FOV * v.x) / (FOV + (v.z - 8.0f))) * 100,
+                 (windowHeight / 2) + ((FOV * v.y) / (FOV + (v.z - 8.0f))) * 100};
 }
 
 vertex Renderer::rotateX(vertex v)
@@ -198,28 +256,32 @@ vertex Renderer::rotateY(vertex v)
     return rotatedVertex;
 }
 
-void Renderer::fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3, SDL_Color color)
+void Renderer::fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3, coord t1, coord t2, coord t3, SDL_Color color)
 {
     SDL_Color tri_color={155,155,155,255};
     SDL_Vertex vertices[3] = {
         {
-            { v1.x,v1.y },
+            { v1.u,v1.v },
             color, // 255, 0, 0, 0xFF
-            { 0.f, 0.f }
+            { t1.u, 1.0f - t1.v }
         },
         {
-            { v2.x, v2.y },
+            { v2.u, v2.v },
             color, // 0, 255, 0, 0xFF
-            { 1.0f, 0.f }
+            { t2.u, 1.0f - t2.v }
         },
         {
-            { v3.x, v3.y },
+            { v3.u, v3.v },
             color, // 0, 0, 255, 0xFF 
-            { 0.5f, 1.0f }
+            { t3.u, 1.0f - t3.v }
         }
     };
-  
-    SDL_RenderGeometry(renderer, NULL, vertices, 3, NULL, 0);
+    if (texture == NULL) {
+        SDL_RenderGeometry(renderer, NULL, vertices, 3, NULL, 0);
+    }
+    else {
+        SDL_RenderGeometry(renderer, texture, vertices, 3, NULL, 0);
+    }
 }
 
 void Renderer::userInput()
