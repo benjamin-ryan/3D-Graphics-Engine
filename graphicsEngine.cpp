@@ -23,25 +23,40 @@ vertex subtractV(const vertex& a, const vertex& b)
     return vertex{a.x - b.x, a.y - b.y, a.z - b.z};
 }
 
+vertex addV(const vertex& a, const vertex& b)
+{
+    return vertex{a.x + b.x, a.y + b.y, a.z + b.z};
+}
+
+vertex multiplyV(const vertex& a, const vertex& b)
+{
+    return vertex{a.x * b.x, a.y * b.y, a.z * b.z};
+}
+
 vertex normalize(const vertex& v) {
     float length = sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     return vertex{v.x / length, v.y / length, v.z / length};
 }
 
-Renderer::Renderer(SDL_Window *_window, SDL_Renderer *_render, mesh &_mesh)
-{
+Renderer::Renderer(SDL_Window *_window, SDL_Renderer *_render, const std::vector<mesh> &_models)
+{   
+    window = _window;
     SDL_GetWindowSize(_window, &windowWidth, &windowHeight);
 
     texture = NULL;
 
     render = _render;
-    model = _mesh;
+    models = _models;
+
+    yaw = 0.0f;
+    pitch = 0.0f;
 
     FOV = 100.0;
     rotation = 0.0f;
     time = 0.0f;
 
     cameraPos = {0, 0, 100.0f};
+    lookDir = {0, 0, 0};
     nearPlane = 0.1f;
     farPlane = 1000.0f;
 }
@@ -58,12 +73,25 @@ void Renderer::renderFrame()
     SDL_SetRenderDrawColor(render, 255, 255, 255, SDL_ALPHA_OPAQUE);
 
     std::vector<triangle> visibleTriangles;
-
+    bool i = true;
+    for (const auto &model : models) {
+        i = !i;
     for (auto &tri : model.triangles)
     {
-        vertex rotatedVertex1 = rotateX(rotateY(tri.v[0]));
-        vertex rotatedVertex2 = rotateX(rotateY(tri.v[1]));
-        vertex rotatedVertex3 = rotateX(rotateY(tri.v[2]));
+        vertex rotatedVertex1;
+        vertex rotatedVertex2;
+        vertex rotatedVertex3;
+
+        if (controlCamera)
+        {
+            rotatedVertex1 = applyCameraTransform(tri.v[0]);
+            rotatedVertex2 = applyCameraTransform(tri.v[1]);
+            rotatedVertex3 = applyCameraTransform(tri.v[2]);
+        } else {
+            rotatedVertex1 = rotateX(rotateY(tri.v[0]));
+            rotatedVertex2 = rotateX(rotateY(tri.v[1]));
+            rotatedVertex3 = rotateX(rotateY(tri.v[2]));
+        }
 
         rotatedVertex1 = subtractV(rotatedVertex1, cameraPos);
         rotatedVertex2 = subtractV(rotatedVertex2, cameraPos);
@@ -73,6 +101,12 @@ void Renderer::renderFrame()
         rotatedVertex1.z = rotatedVertex1.z - 100.0f;
         rotatedVertex2.z = rotatedVertex2.z - 100.0f;
         rotatedVertex3.z = rotatedVertex3.z - 100.0f;
+        // Offset objects from each other
+        if (i) {
+            rotatedVertex1.x = rotatedVertex1.x + 3.0f;
+            rotatedVertex2.x = rotatedVertex2.x + 3.0f;
+            rotatedVertex3.x = rotatedVertex3.x + 3.0f;
+        }
 
         vertex e1 = subtractV(rotatedVertex2, rotatedVertex1);
         vertex e2 = subtractV(rotatedVertex3, rotatedVertex1);
@@ -116,6 +150,7 @@ void Renderer::renderFrame()
             visibleTriangles.push_back(projectedTriangle);
         }
     }
+    }
 
     sort(visibleTriangles.begin(), visibleTriangles.end(), [](triangle &t1, triangle &t2)
     {
@@ -144,7 +179,7 @@ void Renderer::renderFrame()
     time = duration.count();
 }
 
-bool Renderer::loadObjFile(const std::string& filename)
+bool Renderer::loadObjFile(const std::string& filename, int index)
 {
     std::ifstream file(filename);
     if (!file.is_open())
@@ -182,11 +217,16 @@ bool Renderer::loadObjFile(const std::string& filename)
         }
     }
 
-    model = obj;
+    //model = obj;
+    if (index < models.size()) {
+        models[index] = obj;
+    } else {
+        models.push_back(obj);
+    }
     return true;
 }
 
-bool Renderer::loadObjTextureFile(const std::string &filename, const std::string &texturename)
+bool Renderer::loadObjTextureFile(const std::string &filename, const std::string &texturename, int index)
 {
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -238,7 +278,12 @@ bool Renderer::loadObjTextureFile(const std::string &filename, const std::string
             m.triangles.push_back(tri);
         }
     }
-    model = m;
+    //model = m;
+    if (index < models.size()) {
+        models[index] = m;
+    } else {
+        models.push_back(m);
+    }
     return true;
 }
 
@@ -248,25 +293,54 @@ coord Renderer::projection(vertex v)
         return coord{-1, -1}; // Special value to indicate clipping
     }
     return coord{(windowWidth / 2) + ((FOV * v.x) / (FOV + v.z)) * 100,
-                 (windowHeight / 2) + ((FOV * v.y) / (FOV + v.z)) * 100};
+                 (windowHeight / 2) + ((FOV * v.y) / (FOV + v.z)) * -100};
 }
 
 vertex Renderer::rotateX(vertex v)
 {
-    vertex rotatedVertex;
-    rotatedVertex.x = v.x;
-    rotatedVertex.y = cos(rotation) * v.y - sin(rotation) * v.z;
-    rotatedVertex.z = sin(rotation) * v.y + cos(rotation) * v.z;
-    return rotatedVertex;
+    if (!controlCamera)
+    {
+        vertex rotatedVertex;
+        rotatedVertex.x = v.x;
+        rotatedVertex.y = cos(rotation) * v.y - sin(rotation) * v.z;
+        rotatedVertex.z = sin(rotation) * v.y + cos(rotation) * v.z;
+        return rotatedVertex;
+    } else {
+        vertex rotatedVertex;
+        rotatedVertex.x = v.x;
+        rotatedVertex.y = cos(pitch) * v.y - sin(pitch) * v.z;
+        rotatedVertex.z = sin(pitch) * v.y + cos(pitch) * v.z;
+        return rotatedVertex;
+    }
 }
 
 vertex Renderer::rotateY(vertex v)
 {
-    vertex rotatedVertex;
-    rotatedVertex.x = cos(rotation) * v.x - sin(rotation) * v.z;
-    rotatedVertex.y = v.y;
-    rotatedVertex.z = sin(rotation) * v.x + cos(rotation) * v.z;
-    return rotatedVertex;
+    if (!controlCamera)
+    {
+        vertex rotatedVertex;
+        rotatedVertex.x = cos(rotation) * v.x - sin(rotation) * v.z;
+        rotatedVertex.y = v.y;
+        rotatedVertex.z = sin(rotation) * v.x + cos(rotation) * v.z;
+        return rotatedVertex;
+    } else {
+        vertex rotatedVertex;
+        rotatedVertex.x = cos(yaw) * v.x - sin(yaw) * v.z;
+        rotatedVertex.y = v.y;
+        rotatedVertex.z = sin(yaw) * v.x + cos(yaw) * v.z;
+        return rotatedVertex;
+    }
+}
+
+vertex Renderer::applyCameraTransform(vertex v)
+{
+    // Apply yaw (rotation around x-axis)
+    v = rotateY(v);
+
+    // Apply pitch (rotation around y-axis)
+    v = rotateX(v);
+
+    return v;
 }
 
 void Renderer::fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3, coord t1, coord t2, coord t3, SDL_Color color)
@@ -302,11 +376,27 @@ void Renderer::userInput()
     const Uint8 *state = SDL_GetKeyboardState(NULL);
 
     float cameraSpeed = 0.01f;
+    float cameraSensitivity = 0.01f;
+
+    int mouseX;
+    int mouseY;
+    SDL_GetMouseState(&mouseX, &mouseY);
+
+    int centerX = windowWidth / 2;
+    int centerY = windowHeight / 2;
+    float dX = (mouseX - centerX) * cameraSensitivity;
+    float dY = (mouseY - centerY) * cameraSensitivity;
+
+    yaw += dX;
+    pitch -= dY;
+
+    if (pitch > 89.0f) pitch = 89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
 
     if (state[SDL_SCANCODE_W])
-        cameraPos.z -= cameraSpeed * 10;
+        cameraPos.z -= cameraSpeed * 100;
     if (state[SDL_SCANCODE_S])
-        cameraPos.z += cameraSpeed * 10;
+        cameraPos.z += cameraSpeed * 100;
     if (state[SDL_SCANCODE_A])
         cameraPos.x -= cameraSpeed;
     if (state[SDL_SCANCODE_D])
@@ -315,4 +405,14 @@ void Renderer::userInput()
         cameraPos.y -= cameraSpeed;
     if (state[SDL_SCANCODE_E])
         cameraPos.y += cameraSpeed;
+    if (state[SDL_SCANCODE_ESCAPE])
+        exit(0);
+
+    if (controlCamera)
+        SDL_WarpMouseInWindow(SDL_GetWindowFromID(SDL_GetWindowID(window)), centerX, centerY);
+}
+
+void Renderer::setControlCamera(bool _controlCamera)
+{
+    controlCamera = _controlCamera;
 }

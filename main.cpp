@@ -63,9 +63,12 @@ int main()
     window = SDL_CreateWindow("3D Graphics Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 960, 540, 0);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    Renderer frameRenderer(window, renderer, cube);
-    //frameRenderer.loadObjFile("Models/cube.obj");
-    frameRenderer.loadObjTextureFile("./Models/snorkelWithTextures.obj", "./Textures/snorkel.bmp");
+    std::vector<mesh> models(2);
+
+    Renderer frameRenderer(window, renderer, models);
+    frameRenderer.loadObjFile("Models/cube.obj", 0);
+    frameRenderer.loadObjTextureFile("./Models/snorkelWithTextures.obj", "./Textures/snorkel.bmp", 1);
+    frameRenderer.setControlCamera(false);
 
     bool running = true;
 
