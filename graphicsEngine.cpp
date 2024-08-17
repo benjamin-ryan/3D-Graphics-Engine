@@ -69,6 +69,11 @@ void Renderer::renderFrame()
         rotatedVertex2 = subtractV(rotatedVertex2, cameraPos);
         rotatedVertex3 = subtractV(rotatedVertex3, cameraPos);
 
+        // Offset into screen
+        rotatedVertex1.z = rotatedVertex1.z - 100.0f;
+        rotatedVertex2.z = rotatedVertex2.z - 100.0f;
+        rotatedVertex3.z = rotatedVertex3.z - 100.0f;
+
         vertex e1 = subtractV(rotatedVertex2, rotatedVertex1);
         vertex e2 = subtractV(rotatedVertex3, rotatedVertex1);
         vertex normal = crossProduct(e1, e2);
@@ -91,6 +96,11 @@ void Renderer::renderFrame()
             coord edge1 = projection(rotatedVertex1);
             coord edge2 = projection(rotatedVertex2);
             coord edge3 = projection(rotatedVertex3);
+
+            if (edge1.u == -1 || edge2.u == -1 || edge3.u == -1)
+            {
+                continue; // Skip rendering this triangle
+            }
 
             triangle projectedTriangle = {
                 edge1.u, edge1.v, rotatedVertex1.z * (farPlane / (farPlane - nearPlane)) - ((farPlane * nearPlane) / (farPlane - nearPlane)),
@@ -234,8 +244,11 @@ bool Renderer::loadObjTextureFile(const std::string &filename, const std::string
 
 coord Renderer::projection(vertex v)
 {
-    return coord{(windowWidth / 2) + ((FOV * v.x) / (FOV + (v.z - 8.0f))) * 100,
-                 (windowHeight / 2) + ((FOV * v.y) / (FOV + (v.z - 8.0f))) * 100};
+    if (v.z + 100.0f >= nearPlane) {
+        return coord{-1, -1}; // Special value to indicate clipping
+    }
+    return coord{(windowWidth / 2) + ((FOV * v.x) / (FOV + v.z)) * 100,
+                 (windowHeight / 2) + ((FOV * v.y) / (FOV + v.z)) * 100};
 }
 
 vertex Renderer::rotateX(vertex v)
