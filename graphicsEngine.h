@@ -30,11 +30,17 @@ struct mesh
     std::vector<triangle> triangles;
 };
 
+struct matrix4
+{
+    float m[4][4] = { 0.0f };
+};
+
 class Renderer
 {
     public:
         Renderer(SDL_Window *_window, SDL_Renderer *_render, const std::vector<mesh> &_models);
         void renderFrame();
+        void frameRender();
         bool loadObjFile(const std::string& filename, int index);
         bool loadObjTextureFile(const std::string &filename, const std::string &texturename, int index);
         void setControlCamera(bool _controlCamera);
@@ -43,6 +49,7 @@ class Renderer
         vertex rotateX(vertex);
         vertex rotateY(vertex);
         vertex applyCameraTransform(vertex);
+        void convertToWindowCoordinates(vertex&);
 
         bool controlCamera;
 
@@ -56,16 +63,23 @@ class Renderer
         SDL_Texture* texture;
 
         vertex cameraPos;
-        vertex lookDir;
+        vertex cameraDir;
         float nearPlane;
         float farPlane;
 
+        // These are used to rotate an object
+        float rYaw;
+        float rPitch;
+
+        // These are used to rotate the 'camera'
         float yaw;
         float pitch;
 
         float FOV;
         float rotation;
         float time;
+
+        matrix4 projectionMatrix;
 
         std::vector<mesh> models;
 

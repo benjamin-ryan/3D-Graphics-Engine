@@ -3,17 +3,6 @@
 #include <iostream>
 
 // g++ -o main main.cpp graphicsEngine.cpp -std=c++17 `sdl2-config --cflags --libs`
-const int TEXTURE_SIZE = 200;
-const int STRIPE_HEIGHT = 20;
-
-void setPixelColor(Uint32* pixels, int x, int y, int pitch, Uint32 color) {
-    pixels[(y * pitch / 4) + x] = color;
-}
-
-Uint32 createColor(Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
-    return (a << 24) | (b << 16) | (g << 8) | r;
-}
-
 
 int main()
 {
@@ -66,8 +55,8 @@ int main()
     std::vector<mesh> models(2);
 
     Renderer frameRenderer(window, renderer, models);
-    frameRenderer.loadObjFile("Models/cube.obj", 0);
-    frameRenderer.loadObjTextureFile("./Models/snorkelWithTextures.obj", "./Textures/snorkel.bmp", 1);
+    //frameRenderer.loadObjFile("Models/cube.obj", 0);
+    frameRenderer.loadObjTextureFile("./Models/snorkelWithTextures.obj", "./Textures/snorkel.bmp", 0);
     frameRenderer.setControlCamera(false);
 
     bool running = true;
@@ -79,7 +68,8 @@ int main()
             running = false;
             break;
         }
-        frameRenderer.renderFrame();
+        //frameRenderer.renderFrame();
+        frameRenderer.frameRender();
     }
 
     SDL_DestroyWindow(window);
