@@ -52,6 +52,15 @@ void multiplyVM(vertex &v, vertex &product, matrix4 &m)
     }
 }
 
+matrix4 multiplyM(const matrix4 &a, const matrix4 &b)
+{
+    matrix4 matrix;
+    for (int i = 0; i < 4; i++) 
+        for (int j = 0; j < 4; j++)
+            matrix.m[j][i] = a.m[j][0] * b.m[0][i] + a.m[j][1] * b.m[1][i] + a.m[j][2] * b.m[2][i] + a.m[j][3] * b.m[3][i];
+	return matrix;
+}
+
 vertex normalize(const vertex& v) {
     float length = sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     return vertex{v.x / length, v.y / length, v.z / length};
@@ -83,6 +92,18 @@ matrix4 pointAtMatrix(vertex &pos, vertex &target, vertex &up)
     pointAt.m[3][2] = pos.z;
     pointAt.m[3][3] = 1.0f;
     return pointAt;
+}
+
+matrix4 matrixRotateX(float _pitch)
+{
+		matrix4 matrix;
+		matrix.m[0][0] = 1.0f;
+		matrix.m[1][1] = cosf(_pitch);
+		matrix.m[1][2] = sinf(_pitch);
+		matrix.m[2][1] = -sinf(_pitch);
+		matrix.m[2][2] = cosf(_pitch);
+		matrix.m[3][3] = 1.0f;
+		return matrix;
 }
 
 matrix4 matrixRotateY(float _yaw)
@@ -171,9 +192,9 @@ void Renderer::renderFrame()
         vertex rotatedVertex2;
         vertex rotatedVertex3;
 
-        rotatedVertex1 = applyCameraTransform(tri.v[0]);
-        rotatedVertex2 = applyCameraTransform(tri.v[1]);
-        rotatedVertex3 = applyCameraTransform(tri.v[2]);
+        rotatedVertex1 = applyRotation(tri.v[0]);
+        rotatedVertex2 = applyRotation(tri.v[1]);
+        rotatedVertex3 = applyRotation(tri.v[2]);
         
         rotatedVertex1 = subtractV(rotatedVertex1, cameraPos);
         rotatedVertex2 = subtractV(rotatedVertex2, cameraPos);
@@ -414,7 +435,7 @@ vertex Renderer::rotateY(vertex v)
     }
 }
 
-vertex Renderer::applyCameraTransform(vertex v)
+vertex Renderer::applyRotation(vertex v)
 {
     // Apply yaw (rotation around x-axis)
     v = rotateY(v);
@@ -472,11 +493,14 @@ void Renderer::userInput()
     rYaw += dX;
     rPitch -= dY;
 
+    //yaw += dX;
+    //pitch += dY;
+
     if (rPitch > 89.0f) rPitch = 89.0f;
     if (rPitch < -89.0f) rPitch = -89.0f;
 
-    vertex forward = scaleV(cameraDir, time);
-    vertex right = normalize(crossProduct({0.0f, 1.0f, 0.0f}, cameraDir));
+    vertex forward = scaleV(cameraDir, time * 8.0f);
+    vertex right = crossProduct({0.0f, 8.0f, 0.0f}, cameraDir);
 
     if (state[SDL_SCANCODE_W])
         cameraPos = addV(cameraPos, forward);
@@ -487,13 +511,17 @@ void Renderer::userInput()
     if (state[SDL_SCANCODE_D])
         cameraPos = addV(cameraPos, scaleV(right, time)); //cameraPos.x += cameraSpeed;
     if (state[SDL_SCANCODE_Q])
-        cameraPos.y -= cameraSpeed;
+        cameraPos.y -= cameraSpeed * 8.0f;
     if (state[SDL_SCANCODE_E])
-        cameraPos.y += cameraSpeed;
+        cameraPos.y += cameraSpeed * 8.0f;
     if (state[SDL_SCANCODE_LEFT])
-        yaw += 0.001f;
+        yaw += 0.01f;
     if (state[SDL_SCANCODE_RIGHT])
-        yaw -= 0.001f;
+        yaw -= 0.01f;
+    if (state[SDL_SCANCODE_UP])
+        pitch += 0.01f;
+    if (state[SDL_SCANCODE_DOWN])
+        pitch -= 0.01f;
     if (state[SDL_SCANCODE_ESCAPE])
         exit(0);
 
@@ -511,45 +539,58 @@ void Renderer::frameRender()
     userInput();
 
     auto startTime = std::chrono::high_resolution_clock::now();
-    //rotation += time;
+    //rotation += time; // Comment this line out to turn off rotating
 
     SDL_SetRenderDrawColor(render, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(render);
     SDL_SetRenderDrawColor(render, 255, 255, 255, SDL_ALPHA_OPAQUE);
 
+    // Camera Calculations
     vertex up = {0, 1, 0};
     vertex target = {0, 0, 1};
-    matrix4 cameraRotationMatrix = matrixRotateY(yaw);
+    matrix4 cameraRotationMatrix = multiplyM(matrixRotateY(yaw), matrixRotateX(pitch));
     multiplyVM(target, cameraDir, cameraRotationMatrix);
     target = addV(cameraPos, cameraDir);
-
     matrix4 cameraMatrix = pointAtMatrix(cameraPos, target, up);
     matrix4 viewMatrix = inverseMatrix4(cameraMatrix);
 
     std::vector<triangle> visibleTriangles;
 
+    bool i = true;
+
     for (const auto &model : models) {
+        i = !i;
     for (auto &tri : model.triangles)
     {
         vertex rotatedVertex1;
         vertex rotatedVertex2;
         vertex rotatedVertex3;
 
-        rotatedVertex1 = applyCameraTransform(tri.v[0]);
-        rotatedVertex2 = applyCameraTransform(tri.v[1]);
-        rotatedVertex3 = applyCameraTransform(tri.v[2]);
+        // Rotation
+        rotatedVertex1 = applyRotation(tri.v[0]);
+        rotatedVertex2 = applyRotation(tri.v[1]);
+        rotatedVertex3 = applyRotation(tri.v[2]);
 
+        // Offset into z axis
         rotatedVertex1.z = rotatedVertex1.z + 2.0f;
         rotatedVertex2.z = rotatedVertex2.z + 2.0f;
         rotatedVertex3.z = rotatedVertex3.z + 2.0f;
 
+        // Offset from other mesh
+        if (i) {
+            rotatedVertex1.z = rotatedVertex1.z + 2.0f;
+            rotatedVertex2.z = rotatedVertex2.z + 2.0f;
+            rotatedVertex3.z = rotatedVertex3.z + 2.0f;
+            rotatedVertex1.y = rotatedVertex1.y - 9.0f;
+            rotatedVertex2.y = rotatedVertex2.y - 9.0f;
+            rotatedVertex3.y = rotatedVertex3.y - 9.0f;
+        }
+
+        // Calculate normal by cross product
         vertex e1 = subtractV(rotatedVertex2, rotatedVertex1);
         vertex e2 = subtractV(rotatedVertex3, rotatedVertex1);
         vertex normal = crossProduct(e1, e2);
         normal = normalize(normal);
-
-        float l = sqrtf(normal.x*normal.x + normal.y*normal.y + normal.z*normal.z);
-		normal.x /= l; normal.y /= l; normal.z /= l;
 
         if (normal.x * (rotatedVertex1.x - cameraPos.x) +
             normal.y * (rotatedVertex1.y - cameraPos.y) +
@@ -559,6 +600,7 @@ void Renderer::frameRender()
             vertex viewedVertex2;
             vertex viewedVertex3;
 
+            // View object through camera position and diretion
             multiplyVM(rotatedVertex1, viewedVertex1, viewMatrix);
             multiplyVM(rotatedVertex2, viewedVertex2, viewMatrix);
             multiplyVM(rotatedVertex3, viewedVertex3, viewMatrix);
@@ -567,15 +609,15 @@ void Renderer::frameRender()
             vertex projectedVertex2;
             vertex projectedVertex3;
 
+            // Project 3D -> 3D
             multiplyVM(viewedVertex1, projectedVertex1, projectionMatrix);
             multiplyVM(viewedVertex2, projectedVertex2, projectionMatrix);
             multiplyVM(viewedVertex3, projectedVertex3, projectionMatrix);
 
+            // Convert Normalized Coordinates (-1, 1) to SDL Window Coordinates
             convertToWindowCoordinates(projectedVertex1);
             convertToWindowCoordinates(projectedVertex2);
             convertToWindowCoordinates(projectedVertex3);
-
-            //std::cout << "X: " << projectedVertex1.x << " Y: " << projectedVertex1.y << std::endl;
 
             triangle projectedTriangle = {
                 projectedVertex1,
@@ -583,18 +625,22 @@ void Renderer::frameRender()
                 projectedVertex3
             };
 
+            // Copy over texture U V coordinates
             projectedTriangle.t[0] = tri.t[0];
             projectedTriangle.t[1] = tri.t[1];
             projectedTriangle.t[2] = tri.t[2];
 
+            // Calculate light level from dot product
             vertex light = { 0.0f, 0.0f, -1.0f };
             projectedTriangle.lightIntensity = dotProduct(normal, light);
 
+            // Add triangle to list
             visibleTriangles.push_back(projectedTriangle);
         }
     }
     }
 
+    // Sort Triangles by depth from back to front
     sort(visibleTriangles.begin(), visibleTriangles.end(), [](triangle &t1, triangle &t2)
     {
         float z1 = (t1.v[0].z + t1.v[1].z + t1.v[2].z) / 3.0f;
@@ -602,9 +648,10 @@ void Renderer::frameRender()
 		return z1 > z2;
     });
 
+    // Rasterize Triangles (now sorted from back to front)
     for (auto &tri : visibleTriangles)
     {
-        tri.lightIntensity = 1.0f;
+        tri.lightIntensity = 1.0f; // This line disables lighting
         SDL_Color brightness = {
             static_cast<Uint8>(255 * tri.lightIntensity),
             static_cast<Uint8>(255 * tri.lightIntensity),
@@ -625,6 +672,7 @@ void Renderer::frameRender()
 
 void Renderer::convertToWindowCoordinates(vertex &v)
 {
+    /* SDL Window has a coordinate system with (0, 0) in Top Left */
     v.x = (v.x + 1.0f) * (0.5f * windowWidth);
-    v.y = (v.y + 1.0f) * (0.5f * windowHeight);
+    v.y = (1.0f - v.y) * (0.5f * windowHeight);
 }

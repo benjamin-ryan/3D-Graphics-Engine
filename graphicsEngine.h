@@ -48,7 +48,7 @@ class Renderer
         coord projection(vertex);
         vertex rotateX(vertex);
         vertex rotateY(vertex);
-        vertex applyCameraTransform(vertex);
+        vertex applyRotation(vertex);
         void convertToWindowCoordinates(vertex&);
 
         bool controlCamera;
