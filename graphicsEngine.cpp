@@ -168,7 +168,12 @@ Renderer::Renderer(SDL_Window *_window, SDL_Renderer *_render, const std::vector
     projectionMatrix.m[2][2] = farPlane / (farPlane - nearPlane);
     projectionMatrix.m[3][2] = (-farPlane * nearPlane) / (farPlane - nearPlane);
     projectionMatrix.m[2][3] = 1.0f;
-    projectionMatrix.m[3][3] = 0.0f; // Do we need this???
+
+    lowResWidth = 320;
+    lowResHeight = 180;
+    lowResTexture = SDL_CreateTexture(render, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, lowResWidth, lowResHeight);
+
+    fontRenderer = new FontRenderer(render, "Textures/font.bmp");
 }
 
 void Renderer::renderFrame()
@@ -541,6 +546,7 @@ void Renderer::frameRender()
     auto startTime = std::chrono::high_resolution_clock::now();
     //rotation += time; // Comment this line out to turn off rotating
 
+    //SDL_SetRenderTarget(render, lowResTexture);
     SDL_SetRenderDrawColor(render, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(render);
     SDL_SetRenderDrawColor(render, 255, 255, 255, SDL_ALPHA_OPAQUE);
@@ -572,9 +578,9 @@ void Renderer::frameRender()
         rotatedVertex3 = applyRotation(tri.v[2]);
 
         // Offset into z axis
-        rotatedVertex1.z = rotatedVertex1.z + 2.0f;
-        rotatedVertex2.z = rotatedVertex2.z + 2.0f;
-        rotatedVertex3.z = rotatedVertex3.z + 2.0f;
+        rotatedVertex1.z = rotatedVertex1.z + 20.0f;
+        rotatedVertex2.z = rotatedVertex2.z + 20.0f;
+        rotatedVertex3.z = rotatedVertex3.z + 20.0f;
 
         // Offset from other mesh
         if (i) {
@@ -663,7 +669,16 @@ void Renderer::frameRender()
         //SDL_RenderDrawLine(render, tri.v[2].x, tri.v[2].y, tri.v[0].x, tri.v[0].y);
     }
 
+    // Render text to the screen
+    fontRenderer->renderText(render, "Benjamin Ryan!", 0, 0);
+
     SDL_RenderPresent(render);
+
+    /*
+    SDL_SetRenderTarget(render, NULL);
+    SDL_RenderCopy(render, lowResTexture, nullptr, nullptr);
+    SDL_RenderPresent(render);
+    */
 
     auto endTime = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = endTime - startTime;
@@ -675,4 +690,6 @@ void Renderer::convertToWindowCoordinates(vertex &v)
     /* SDL Window has a coordinate system with (0, 0) in Top Left */
     v.x = (v.x + 1.0f) * (0.5f * windowWidth);
     v.y = (1.0f - v.y) * (0.5f * windowHeight);
+    //v.x = (v.x + 1.0f) * (0.5f * lowResWidth);
+    //v.y = (1.0f - v.y) * (0.5f * lowResHeight);
 }

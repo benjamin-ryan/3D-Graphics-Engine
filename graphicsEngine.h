@@ -1,6 +1,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include "fontRenderer.h"
 
 #ifndef GRAPHICSENGINE_H
 #define GRAPHICESENGINE_H
@@ -49,6 +50,7 @@ class Renderer
         vertex rotateX(vertex);
         vertex rotateY(vertex);
         vertex applyRotation(vertex);
+        void fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3, coord t1, coord t2, coord t3, SDL_Color color);
         void convertToWindowCoordinates(vertex&);
 
         bool controlCamera;
@@ -83,7 +85,11 @@ class Renderer
 
         std::vector<mesh> models;
 
-        void fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3, coord t1, coord t2, coord t3, SDL_Color color);
+        int lowResWidth;
+        int lowResHeight;
+        SDL_Texture* lowResTexture;
+
+        FontRenderer* fontRenderer;
 };
 
 #endif

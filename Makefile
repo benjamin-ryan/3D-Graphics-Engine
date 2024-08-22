@@ -1,23 +1,22 @@
 # Variables
 CXX = g++
-CXXFLAGS = -I/opt/homebrew/opt/sdl2/include
-LDFLAGS = -L/opt/homebrew/opt/sdl2/lib -lSDL2
+CXXFLAGS = -std=c++17 `sdl2-config --cflags`
+LDFLAGS = `sdl2-config --libs`
 TARGET = main
-SRCS = main.cpp graphicsEngine.cpp
+SRCS = main.cpp graphicsEngine.cpp fontRenderer.cpp
 OBJS = $(SRCS:.cpp=.o)
-STD = -std=c++17
 
-# Default rule
+# Default target
 all: $(TARGET)
 
-# Linking rule
+# Rule to build the target
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) $(LDFLAGS) $(STD) -o $(TARGET)
+	$(CXX) -o $(TARGET) $(OBJS) $(LDFLAGS)
 
-# Compilation rule
+# Rule to build object files
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(STD) -c $< -o $@
+	$(CXX) -c $< -o $@ $(CXXFLAGS)
 
-# Clean rule
+# Clean up build files
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f $(OBJS) $(TARGET)
