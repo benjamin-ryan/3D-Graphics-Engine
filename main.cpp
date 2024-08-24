@@ -61,6 +61,8 @@ int main()
     frameRenderer.setControlCamera(false);
 
     bool running = true;
+    auto lastTime = std::chrono::high_resolution_clock::now();
+    int frames = 0;
 
     while (running)
     {
@@ -69,6 +71,17 @@ int main()
             running = false;
             break;
         }
+
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> elapsed = currentTime - lastTime;
+
+        frames++;
+        if (elapsed.count() >= 1.0f) {
+            frameRenderer.setFps(frames);
+            frames = 0;
+            lastTime = currentTime;
+        }
+
         //frameRenderer.renderFrame();
         frameRenderer.frameRender();
     }

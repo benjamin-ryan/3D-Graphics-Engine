@@ -539,6 +539,11 @@ void Renderer::setControlCamera(bool _controlCamera)
     controlCamera = _controlCamera;
 }
 
+void Renderer::setFps(int _fps)
+{
+    fps = _fps;
+}
+
 void Renderer::frameRender()
 {
     userInput();
@@ -671,6 +676,7 @@ void Renderer::frameRender()
 
     // Render text to the screen
     fontRenderer->renderTextCentered(render, "Benjamin Ryan!", windowWidth / 2, 5, 1.0f);
+    fontRenderer->renderText(render, std::to_string(fps) + " FPS", 0, 5, 1.0f, 255, 0, 0);
 
     SDL_RenderPresent(render);
 

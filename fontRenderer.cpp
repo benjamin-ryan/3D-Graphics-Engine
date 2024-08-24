@@ -11,15 +11,50 @@ FontRenderer::FontRenderer(SDL_Renderer* renderer, const std::string& fontFile)
         std::cout << "Failed to open texture: " << "font.bmp" << std::endl;
     }
     texture = SDL_CreateTextureFromSurface(renderer, surface);
-    SDL_FreeSurface(surface);
-
-    //SDL_SetTextureColorMod(fontTexture, 255, 0, 0);
+    SDL_FreeSurface(surface);    
 
     initializeGlyphs();
 }
 
 void FontRenderer::renderText(SDL_Renderer* renderer, const std::string& text, int x, int y, float scale)
 {
+    SDL_SetTextureColorMod(texture, 255, 255, 255);
+
+    int startX = x;
+    int adjustX = 0;
+    int adjustY = 0;
+
+    for (char c : text)
+    {
+        if (glyphs.find(c) != glyphs.end())
+        {
+            int adjustX = 0;
+            int adjustY = 0;
+            if (c == 'p' || c == 'q' || c == 'y' || c == 'g')
+            {
+                adjustY = static_cast<int>(4 * scale);
+            }
+            else if (c == 'j')
+            {
+                adjustY = static_cast<int>(3 * scale);
+            }
+
+            SDL_Rect srcRect = glyphs[c];
+            SDL_Rect destRect = {x + adjustX, y + adjustY, static_cast<int>(srcRect.w * scale), static_cast<int>(15 * scale)};
+            SDL_RenderCopy(renderer, texture, &srcRect, &destRect);
+            x += srcRect.w * scale;
+        } else if (c == '\n')
+        {
+            y += static_cast<int>(20 * scale);
+            x = startX;
+        }
+    }
+}
+
+void FontRenderer::renderText(SDL_Renderer* renderer, const std::string& text, int x, int y, float scale, int r, int g, int b)
+{
+    SDL_SetTextureColorMod(texture, r, g, b);
+
     int startX = x;
     int adjustX = 0;
     int adjustY = 0;
@@ -53,6 +88,51 @@ void FontRenderer::renderText(SDL_Renderer* renderer, const std::string& text, i
 
 void FontRenderer::renderTextCentered(SDL_Renderer* renderer, const std::string& text, int x, int y, float scale)
 {
+    SDL_SetTextureColorMod(texture, 255, 255, 255);
+
+    int width = 0;
+    for (char c : text) {
+        if (c == '\n')
+            break;
+        width += static_cast<int>(glyphs[c].w * scale);
+    }
+    width = width / 2;
+    int startX = x - width;
+    x = x - width;
+    int adjustX = 0;
+    int adjustY = 0;
+
+    for (char c : text)
+    {
+        if (glyphs.find(c) != glyphs.end())
+        {
+            int adjustX = 0;
+            int adjustY = 0;
+            if (c == 'p' || c == 'q' || c == 'y' || c == 'g')
+            {
+                adjustY = static_cast<int>(4 * scale);
+            }
+            else if (c == 'j')
+            {
+                adjustY = static_cast<int>(3 * scale);
+            }
+
+            SDL_Rect srcRect = glyphs[c];
+            SDL_Rect destRect = {x + adjustX, y + adjustY, static_cast<int>(srcRect.w * scale), static_cast<int>(15 * scale)};
+            SDL_RenderCopy(renderer, texture, &srcRect, &destRect);
+            x += srcRect.w * scale;
+        } else if (c == '\n')
+        {
+            y += static_cast<int>(20 * scale);
+            x = startX;
+        }
+    }
+}
+
+void FontRenderer::renderTextCentered(SDL_Renderer* renderer, const std::string& text, int x, int y, float scale, int r, int g, int b)
+{
+    SDL_SetTextureColorMod(texture, r, g, b);
+
     int width = 0;
     for (char c : text) {
         if (c == '\n')
@@ -131,7 +211,7 @@ void FontRenderer::initializeGlyphs()
         {
             width = 10;
         }
-        else if (c == 'a' || c == 'b' || c == 'd' || c == 'e' || c == 'o' || c == 'p' || c == 'q' || c == 'h' || c == 'y')
+        else if (c == 'a' || c == 'b' || c == 'd' || c == 'e' || c == 'o' || c == 'p' || c == 'q' || c == 'h' || c == 'y' || c == '7' || c == '4')
         {
             width = 12;
         }

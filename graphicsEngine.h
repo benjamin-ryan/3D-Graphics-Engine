@@ -45,6 +45,7 @@ class Renderer
         bool loadObjFile(const std::string& filename, int index);
         bool loadObjTextureFile(const std::string &filename, const std::string &texturename, int index);
         void setControlCamera(bool _controlCamera);
+        void setFps(int _fps);
     private:
         coord projection(vertex);
         vertex rotateX(vertex);
@@ -52,6 +53,8 @@ class Renderer
         vertex applyRotation(vertex);
         void fillTriangle(SDL_Renderer *renderer, coord v1, coord v2, coord v3, coord t1, coord t2, coord t3, SDL_Color color);
         void convertToWindowCoordinates(vertex&);
+
+        int fps;
 
         bool controlCamera;
 
