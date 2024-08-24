@@ -7,7 +7,8 @@ class FontRenderer
 {
     public:
         FontRenderer(SDL_Renderer* renderer, const std::string& fontFile);
-        void renderText(SDL_Renderer* renderer, const std::string& text, int x, int y);
+        void renderText(SDL_Renderer* renderer, const std::string& text, int x, int y, float scale);
+        void renderTextCentered(SDL_Renderer* renderer, const std::string& text, int x, int y, float scale);
 
     private:
         SDL_Texture* texture;

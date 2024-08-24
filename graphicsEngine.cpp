@@ -670,7 +670,7 @@ void Renderer::frameRender()
     }
 
     // Render text to the screen
-    fontRenderer->renderText(render, "Benjamin Ryan!", 0, 0);
+    fontRenderer->renderTextCentered(render, "Benjamin Ryan!", windowWidth / 2, 5, 1.0f);
 
     SDL_RenderPresent(render);
 

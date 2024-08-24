@@ -18,7 +18,7 @@ FontRenderer::FontRenderer(SDL_Renderer* renderer, const std::string& fontFile)
     initializeGlyphs();
 }
 
-void FontRenderer::renderText(SDL_Renderer* renderer, const std::string& text, int x, int y)
+void FontRenderer::renderText(SDL_Renderer* renderer, const std::string& text, int x, int y, float scale)
 {
     int startX = x;
     int adjustX = 0;
@@ -30,23 +30,63 @@ void FontRenderer::renderText(SDL_Renderer* renderer, const std::string& text, i
         {
             int adjustX = 0;
             int adjustY = 0;
-            if (c == 'g')
+            if (c == 'p' || c == 'q' || c == 'y' || c == 'g')
             {
-                adjustX = -2;
-                adjustY = 3;
+                adjustY = static_cast<int>(4 * scale);
             }
-            else if (c == 'p' || c == 'q' || c == 'y')
+            else if (c == 'j')
             {
-                adjustY = 4;
+                adjustY = static_cast<int>(3 * scale);
             }
 
             SDL_Rect srcRect = glyphs[c];
-            SDL_Rect destRect = {x + adjustX, y + adjustY, srcRect.w, 15};
+            SDL_Rect destRect = {x + adjustX, y + adjustY, static_cast<int>(srcRect.w * scale), static_cast<int>(15 * scale)};
             SDL_RenderCopy(renderer, texture, &srcRect, &destRect);
-            x += srcRect.w;
+            x += srcRect.w * scale;
         } else if (c == '\n')
         {
-            y += 15;
+            y += static_cast<int>(20 * scale);
+            x = startX;
+        }
+    }
+}
+
+void FontRenderer::renderTextCentered(SDL_Renderer* renderer, const std::string& text, int x, int y, float scale)
+{
+    int width = 0;
+    for (char c : text) {
+        if (c == '\n')
+            break;
+        width += static_cast<int>(glyphs[c].w * scale);
+    }
+    width = width / 2;
+    int startX = x - width;
+    x = x - width;
+    int adjustX = 0;
+    int adjustY = 0;
+
+    for (char c : text)
+    {
+        if (glyphs.find(c) != glyphs.end())
+        {
+            int adjustX = 0;
+            int adjustY = 0;
+            if (c == 'p' || c == 'q' || c == 'y' || c == 'g')
+            {
+                adjustY = static_cast<int>(4 * scale);
+            }
+            else if (c == 'j')
+            {
+                adjustY = static_cast<int>(3 * scale);
+            }
+
+            SDL_Rect srcRect = glyphs[c];
+            SDL_Rect destRect = {x + adjustX, y + adjustY, static_cast<int>(srcRect.w * scale), static_cast<int>(15 * scale)};
+            SDL_RenderCopy(renderer, texture, &srcRect, &destRect);
+            x += srcRect.w * scale;
+        } else if (c == '\n')
+        {
+            y += static_cast<int>(20 * scale);
             x = startX;
         }
     }
