@@ -140,6 +140,94 @@ matrix4 inverseMatrix4(matrix4& m)
     return matrix;
 }
 
+vertex intersectPlane(vertex &plane, vertex &planeNormal, vertex &start, vertex &end)
+{
+    float planeD = -dotProduct(plane, planeNormal);
+    float ad = dotProduct(start, planeNormal);
+    float bd = dotProduct(end, planeNormal);
+    float t = (-planeD - ad) / (bd - ad);
+    vertex line = subtractV(end, start);
+    vertex intersect = scaleV(line, t);
+    return addV(start, intersect);
+}
+
+int clipTriangle(vertex plane, vertex planeNormal, triangle &in, triangle &out1, triangle &out2)
+{
+    auto dist = [&](vertex &p)
+    {
+        vertex n = normalize(p);
+        return (planeNormal.x * p.x + planeNormal.y * p.y + planeNormal.z * p.z - dotProduct(planeNormal, plane));
+    };
+    
+    vertex* insidePoints[3];
+    int numInsidePoints = 0;
+    vertex* outsidePoints[3];
+    int numOutsidePoints = 0;
+
+    float d0 = dist(in.v[0]);
+    float d1 = dist(in.v[1]);
+    float d2 = dist(in.v[2]);
+
+    if (d0 >= 0)
+    {
+        insidePoints[numInsidePoints++] = &in.v[0];
+    }
+    else
+    {
+        outsidePoints[numOutsidePoints++] = &in.v[0];
+    }
+    if (d1 >= 0)
+    {
+        insidePoints[numInsidePoints++] = &in.v[1];
+    }
+    else
+    {
+        outsidePoints[numOutsidePoints++] = &in.v[1];
+    }
+    if (d2 >= 0)
+    {
+        insidePoints[numInsidePoints++] = &in.v[2];
+    }
+    else
+    {
+        outsidePoints[numOutsidePoints++] = &in.v[2];
+    }    
+
+    if (numInsidePoints == 0)
+    {
+        return 0;
+    }
+
+    if (numInsidePoints == 3)
+    {
+        out1 = in;
+        return 1;
+    }
+
+    if (numInsidePoints == 1 && numOutsidePoints == 2)
+    {
+        out1.v[0] = *insidePoints[0];
+        out1.v[1] = intersectPlane(plane, planeNormal, *insidePoints[0], *outsidePoints[0]);
+        out1.v[2] = intersectPlane(plane, planeNormal, *insidePoints[0], *outsidePoints[1]);
+
+        return 1;
+    }
+
+    if (numInsidePoints == 2 && numOutsidePoints == 1)
+    {
+        out1.v[0] = *insidePoints[0];
+        out1.v[1] = *insidePoints[1];
+        out1.v[2] = intersectPlane(plane, planeNormal, *insidePoints[0], *outsidePoints[0]);
+
+        out2.v[0] = *insidePoints[1];
+        out2.v[1] = out1.v[2];
+        out2.v[2] = intersectPlane(plane, planeNormal, *insidePoints[1], *outsidePoints[0]);
+        return 2;
+    }
+
+    return 0;
+}
+
 Renderer::Renderer(SDL_Window *_window, SDL_Renderer *_render, const std::vector<mesh> &_models)
 {   
     window = _window;
@@ -158,7 +246,7 @@ Renderer::Renderer(SDL_Window *_window, SDL_Renderer *_render, const std::vector
     time = 0.0f;
 
     //cameraPos = {0, 0, 100.0f}; // Camera Position for original projection method
-    cameraPos = {0, 0, 0.0f};
+    cameraPos = {0.0f, 2.0f, 0.0f};
     cameraDir = {0, 0, 1};
     nearPlane = 0.1f;
     farPlane = 1000.0f;
@@ -551,7 +639,7 @@ void Renderer::frameRender()
     auto startTime = std::chrono::high_resolution_clock::now();
     //rotation += time; // Comment this line out to turn off rotating
 
-    //SDL_SetRenderTarget(render, lowResTexture);
+    //SDL_SetRenderTarget(render, lowResTexture); // Comment this line out to turn off lowRes
     SDL_SetRenderDrawColor(render, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(render);
     SDL_SetRenderDrawColor(render, 255, 255, 255, SDL_ALPHA_OPAQUE);
@@ -611,42 +699,54 @@ void Renderer::frameRender()
             vertex viewedVertex2;
             vertex viewedVertex3;
 
-            // View object through camera position and diretion
+            // View object through camera position and direction
             multiplyVM(rotatedVertex1, viewedVertex1, viewMatrix);
             multiplyVM(rotatedVertex2, viewedVertex2, viewMatrix);
             multiplyVM(rotatedVertex3, viewedVertex3, viewMatrix);
 
-            vertex projectedVertex1;
-            vertex projectedVertex2;
-            vertex projectedVertex3;
-
-            // Project 3D -> 3D
-            multiplyVM(viewedVertex1, projectedVertex1, projectionMatrix);
-            multiplyVM(viewedVertex2, projectedVertex2, projectionMatrix);
-            multiplyVM(viewedVertex3, projectedVertex3, projectionMatrix);
-
-            // Convert Normalized Coordinates (-1, 1) to SDL Window Coordinates
-            convertToWindowCoordinates(projectedVertex1);
-            convertToWindowCoordinates(projectedVertex2);
-            convertToWindowCoordinates(projectedVertex3);
-
-            triangle projectedTriangle = {
-                projectedVertex1,
-                projectedVertex2,
-                projectedVertex3
+            triangle viewedTriangle = {
+                viewedVertex1,
+                viewedVertex2,
+                viewedVertex3
             };
 
-            // Copy over texture U V coordinates
-            projectedTriangle.t[0] = tri.t[0];
-            projectedTriangle.t[1] = tri.t[1];
-            projectedTriangle.t[2] = tri.t[2];
+            // Clip Triangles against near plane
+            triangle clipped[2];
+            int numClipped = clipTriangle({ 0.0f, 0.0f, 0.1f }, { 0.0f, 0.0f, 1.0f }, viewedTriangle, clipped[0], clipped[1]);
+            for (int n = 0; n < numClipped; n++)
+            {
+                vertex projectedVertex1;
+                vertex projectedVertex2;
+                vertex projectedVertex3;
 
-            // Calculate light level from dot product
-            vertex light = { 0.0f, 0.0f, -1.0f };
-            projectedTriangle.lightIntensity = dotProduct(normal, light);
+                // Project 3D -> 3D
+                multiplyVM(clipped[n].v[0], projectedVertex1, projectionMatrix);
+                multiplyVM(clipped[n].v[1], projectedVertex2, projectionMatrix);
+                multiplyVM(clipped[n].v[2], projectedVertex3, projectionMatrix);
 
-            // Add triangle to list
-            visibleTriangles.push_back(projectedTriangle);
+                // Convert Normalized Coordinates (-1, 1) to SDL Window Coordinates
+                convertToWindowCoordinates(projectedVertex1);
+                convertToWindowCoordinates(projectedVertex2);
+                convertToWindowCoordinates(projectedVertex3);
+
+                triangle projectedTriangle = {
+                    projectedVertex1,
+                    projectedVertex2,
+                    projectedVertex3
+                };
+
+                // Copy over texture U V coordinates
+                projectedTriangle.t[0] = tri.t[0];
+                projectedTriangle.t[1] = tri.t[1];
+                projectedTriangle.t[2] = tri.t[2];
+
+                // Calculate light level from dot product
+                vertex light = { 0.0f, 1.0f, -1.0f };
+                projectedTriangle.lightIntensity = dotProduct(normal, light);
+
+                // Add triangle to list
+                visibleTriangles.push_back(projectedTriangle);
+            }
         }
     }
     }
@@ -680,7 +780,7 @@ void Renderer::frameRender()
 
     SDL_RenderPresent(render);
 
-    /*
+    /* // Comment this out to turn off lowRes
     SDL_SetRenderTarget(render, NULL);
     SDL_RenderCopy(render, lowResTexture, nullptr, nullptr);
     SDL_RenderPresent(render);
@@ -693,7 +793,7 @@ void Renderer::frameRender()
 
 void Renderer::convertToWindowCoordinates(vertex &v)
 {
-    /* SDL Window has a coordinate system with (0, 0) in Top Left */
+    /* SDL Window has a coordinate system with (0, 0) in top left corner */
     v.x = (v.x + 1.0f) * (0.5f * windowWidth);
     v.y = (1.0f - v.y) * (0.5f * windowHeight);
     //v.x = (v.x + 1.0f) * (0.5f * lowResWidth);
