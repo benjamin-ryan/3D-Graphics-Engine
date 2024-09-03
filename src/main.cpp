@@ -56,7 +56,7 @@ int main()
 
     Renderer frameRenderer(window, renderer, models);
     frameRenderer.loadObjFile("Models/cube.obj", 0);
-    frameRenderer.loadObjTextureFile("Models/skeletonBigger.obj", "Textures/skeleton.bmp", 1);
+    frameRenderer.loadObjTextureFile("Models/skeleton.obj", "Textures/skeleton.bmp", 1);
     //frameRenderer.loadObjTextureFile("./Models/snorkelWithTextures.obj", "./Textures/snorkel.bmp", 0);
     frameRenderer.setControlCamera(false);
 

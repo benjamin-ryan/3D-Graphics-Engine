@@ -1,9 +1,9 @@
 # Variables
 CXX = g++
-CXXFLAGS = -std=c++17 `sdl2-config --cflags`
-LDFLAGS = `sdl2-config --libs`
+CXXFLAGS = -std=c++17 -I./include
+LDFLAGS = -L./lib -lSDL2 -lSDL2main
 TARGET = main
-SRCS = main.cpp graphicsEngine.cpp fontRenderer.cpp
+SRCS = src/main.cpp src/graphicsEngine.cpp src/fontRenderer.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 # Default target

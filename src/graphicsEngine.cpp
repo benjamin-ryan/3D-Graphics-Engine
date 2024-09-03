@@ -762,7 +762,7 @@ void Renderer::frameRender()
     // Rasterize Triangles (now sorted from back to front)
     for (auto &tri : visibleTriangles)
     {
-        tri.lightIntensity = 1.0f; // This line disables lighting
+        //tri.lightIntensity = 1.0f; // This line disables lighting
         SDL_Color brightness = {
             static_cast<Uint8>(255 * tri.lightIntensity),
             static_cast<Uint8>(255 * tri.lightIntensity),
