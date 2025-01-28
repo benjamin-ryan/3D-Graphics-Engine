@@ -3,3 +3,7 @@
 /Models/floor.obj
 /Models/mountains.obj
 /Models/ship.obj
+/src/fontRenderer.o
+/src/graphicsEngine.o
+/src/main.o
+/main
