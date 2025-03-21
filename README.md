@@ -1,4 +1,4 @@
-#3D-Graphics-Engine
+# 3D-Graphics-Engine
 This is my first time creating and experimenting with 3D Graphics.
 My goal with this project is not to create the greatest engine possible,
 but to fully understand how 3D Graphics works (i.e. Perspective Projection and Rasterization).
